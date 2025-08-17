@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TDS Data Analyst Agent</title>
+  <meta name="color-scheme" content="dark light" />
+  <style>
+    /* ============== CSS RESET + THEME ============== */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; line-height: 1.6; }
+
+    :root {
+      /* Brand */
+      --brand-1: #7c83ff;
+      --brand-2: #a76cf5;
+      --brand-3: #12c2e9;
+
+      /* Surface & text (dark) */
+      --bg: #0e1017;
+      --bg-elev: #141827;
+      --bg-soft: #101425;
+      --text: #edf1ff;
+      --muted: #aab2cf;
+      --border: #2a2f45;
+      --ring: #7c83ff;
+
+      /* Accents */
+      --ok: #1fbf75;
+      --warn: #f2b01e;
+      --err: #ff5964;
+
+      /* Effects */
+      --radius-lg: 18px;
+      --radius-md: 12px;
+      --radius-sm: 10px;
+      --shadow-1: 0 10px 30px rgba(0,0,0,.45), 0 2px 4px rgba(0,0,0,.45);
+      --shadow-2: 0 20px 60px rgba(0,0,0,.5);
+      --grid-gap: 18px;
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f6f7fb;
+        --bg-elev: #ffffff;
+        --bg-soft: #f0f3ff;
+        --text: #0b1020;
+        --muted: #4b5066;
+        --border: #dde2f2;
+        --ring: #5850ec;
+        --shadow-1: 0 10px 25px rgba(38, 44, 84, .08), 0 1px 2px rgba(38, 44, 84, .08);
+        --shadow-2: 0 30px 60px rgba(38, 44, 84, .12);
+      }
+    }
+
+    /* ============== BACKDROP ============== */
+    .backdrop {
+      position: fixed; inset: 0; pointer-events: none; z-index: -1;
+      background:
+        radial-gradient(60vmax 60vmax at 15% 10%, rgba(124,131,255,.18), transparent 65%),
+        radial-gradient(60vmax 60vmax at 80% 0%, rgba(18,194,233,.14), transparent 60%),
+        radial-gradient(60vmax 60vmax at 90% 85%, rgba(167,108,245,.16), transparent 65%),
+        linear-gradient(135deg, #0a0c14 0%, #0e1017 40%, #101425 100%);
+      filter: saturate(1.1);
+    }
+    .blob { position: absolute; width: 50vmax; height: 50vmax; border-radius: 50%; filter: blur(60px); opacity: .35; mix-blend-mode: screen; animation: float 22s ease-in-out infinite; }
+    .blob.b1 { left: -10vmax; top: -10vmax; background: radial-gradient(circle at 30% 30%, #7c83ff, transparent 60%); }
+    .blob.b2 { right: -15vmax; top: -5vmax; background: radial-gradient(circle at 40% 40%, #12c2e9, transparent 60%); animation-duration: 28s; }
+    .blob.b3 { right: -10vmax; bottom: -10vmax; background: radial-gradient(circle at 50% 50%, #a76cf5, transparent 60%); animation-duration: 34s; }
+    @keyframes float { 0%,100%{ transform: translateY(0) } 50%{ transform: translateY(-4vmax) } }
+
+    /* ============== LAYOUT ============== */
+    .container { max-width: 1120px; margin: 0 auto; padding: 28px; color: var(--text); }
+
+    .nav {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; font-weight: 800; letter-spacing: .2px; }
+    .logo {
+      width: 40px; height: 40px; border-radius: 12px;
+      background: conic-gradient(from 180deg, var(--brand-1), var(--brand-3), var(--brand-2), var(--brand-1));
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,.12), var(--shadow-1);
+    }
+
+    .pill {
+      display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; border: 1px solid var(--border); background: color-mix(in oklab, var(--bg-elev) 80%, black 20%);
+    }
+
+    .theme-toggle { cursor: pointer; border: 1px solid var(--border); padding: 8px 12px; border-radius: 999px; background: var(--bg-elev); display: inline-flex; gap: 8px; align-items: center; box-shadow: var(--shadow-1); }
+    .theme-toggle input { display:none; }
+
+    .header {
+      display: grid; grid-template-columns: 1.2fr .8fr; gap: var(--grid-gap); align-items: stretch; margin: 8px 0 22px;
+    }
+    .hero {
+      border: 1px solid var(--border); background: linear-gradient(180deg, color-mix(in oklab, var(--bg-elev) 90%, white 10%), color-mix(in oklab, var(--bg-elev) 85%, black 15%)); border-radius: var(--radius-lg); padding: 26px; box-shadow: var(--shadow-2);
+    }
+    .hero h1 { margin: 0 0 8px; font-size: clamp(1.6rem, 2.6vw, 2.4rem); letter-spacing: .2px; }
+    .hero p { color: var(--muted); margin: 0 0 16px; }
+
+    .statbar { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+    .stat { background: var(--bg-soft); border: 1px solid var(--border); padding: 10px 12px; border-radius: 12px; font-size: 14px; }
+
+    .tips { border: 1px dashed var(--border); background: color-mix(in oklab, var(--bg-soft) 92%, white 8%); border-radius: var(--radius-lg); padding: 16px 18px; font-size: 14px; color: var(--muted); }
+
+    /* ============== CARD ============== */
+    .card {
+      border: 1px solid var(--border); background: linear-gradient(180deg, color-mix(in oklab, var(--bg-elev) 95%, white 5%), color-mix(in oklab, var(--bg-elev) 90%, black 10%));
+      border-radius: var(--radius-lg); padding: 22px; box-shadow: var(--shadow-1);
+    }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--grid-gap); }
+
+    .control-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+
+    label { font-weight: 700; font-size: 14px; color: color-mix(in oklab, var(--text) 82%, #fff 18%); }
+
+    .dropzone {
+      position: relative; border: 1px dashed var(--border); background: var(--bg-soft); border-radius: var(--radius-md); padding: 18px; display: grid; gap: 8px; place-content: center; text-align: center; color: var(--muted); transition: .2s ease; min-height: 110px;
+    }
+    .dropzone.drag { border-color: var(--ring); box-shadow: 0 0 0 4px color-mix(in oklab, var(--ring) 25%, transparent 75%); transform: translateY(-1px); }
+    .dropzone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .file-meta { display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--text); font-size: 14px; }
+    .file-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 999px; box-shadow: var(--shadow-1); }
+    .file-chip button { background: none; border: none; color: var(--muted); cursor: pointer; }
+
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn { appearance: none; border: none; cursor: pointer; font-weight: 800; letter-spacing: .2px; padding: 14px 18px; border-radius: 14px; transition: transform .12s ease, box-shadow .2s ease, filter .2s ease; }
+    .btn:disabled { filter: grayscale(.5) brightness(.8); cursor: not-allowed; }
+    .btn.primary { color: white; background: linear-gradient(135deg, var(--brand-1), var(--brand-3) 60%, var(--brand-2)); box-shadow: 0 12px 30px rgba(124,131,255,.25); }
+    .btn.primary:hover { transform: translateY(-1px); box-shadow: 0 18px 44px rgba(124,131,255,.35); }
+    .btn.secondary { color: var(--text); background: var(--bg-soft); border: 1px solid var(--border); }
+    .btn.ghost { background: transparent; border: 1px dashed var(--border); color: var(--muted); }
+
+    .progress {
+      height: 8px; background: color-mix(in oklab, var(--bg-soft) 92%, black 8%); border: 1px solid var(--border); border-radius: 999px; overflow: hidden; position: relative;
+    }
+    .progress > span { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, var(--brand-1), var(--brand-3)); box-shadow: inset 0 0 8px rgba(255,255,255,.2); transition: width .2s ease; }
+
+    .statusbar { display: flex; gap: 10px; align-items: center; justify-content: space-between; margin: 10px 0 0; font-size: 12px; color: var(--muted); }
+    .badge { padding: 6px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-elev); font-weight: 700; font-size: 12px; }
+
+    /* ============== PANELS ============== */
+    .panels { margin-top: 18px; }
+    .tabs { display: flex; gap: 8px; }
+    .tab { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-soft); cursor: pointer; font-weight: 700; }
+    .tab.active { border-color: color-mix(in oklab, var(--ring) 35%, var(--border) 65%); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 15%, transparent 85%); }
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .results { display: grid; gap: 12px; margin-top: 12px; }
+    .result {
+      border-left: 4px solid var(--brand-1); background: var(--bg-elev); border: 1px solid var(--border); border-left-color: var(--brand-1); padding: 14px; border-radius: 12px; box-shadow: var(--shadow-1);
+    }
+    .result .title { display: flex; gap: 8px; align-items: center; justify-content: space-between; cursor: pointer; }
+    .result .title h4 { margin: 0; font-size: 15px; }
+    .result .title .row { display: flex; gap: 6px; align-items: center; }
+    .result .content { margin-top: 10px; display: none; }
+    .result.open .content { display: block; }
+
+    pre.code { margin: 0; white-space: pre-wrap; background: var(--bg-soft); border: 1px solid var(--border); padding: 12px; border-radius: 10px; overflow: auto; }
+    .content img { max-width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--border); box-shadow: var(--shadow-1); cursor: zoom-in; }
+
+    .searchbar { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+    .searchbar input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-soft); color: var(--text); }
+
+    /* ============== MODAL ============== */
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,.88); display: none; place-items: center; z-index: 1000; }
+    .modal.open { display: grid; }
+    .modal img { max-width: min(1200px, 92vw); max-height: 90vh; width: auto; height: auto; border-radius: 16px; box-shadow: var(--shadow-2); }
+    .modal .close { position: absolute; top: 18px; right: 22px; font-size: 38px; line-height: 1; cursor: pointer; color: #fff; }
+
+    /* ============== TOASTS ============== */
+    .toasts { position: fixed; right: 18px; bottom: 18px; display: grid; gap: 10px; z-index: 1100; }
+    .toast { background: var(--bg-elev); border: 1px solid var(--border); color: var(--text); padding: 12px 14px; border-radius: 12px; box-shadow: var(--shadow-1); display: grid; gap: 6px; min-width: 260px; }
+    .toast.ok { border-left: 4px solid var(--ok); }
+    .toast.err { border-left: 4px solid var(--err); }
+
+    /* ============== RESPONSIVE ============== */
+    @media (max-width: 900px) {
+      .header { grid-template-columns: 1fr; }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="backdrop">
+    <div class="blob b1" aria-hidden="true"></div>
+    <div class="blob b2" aria-hidden="true"></div>
+    <div class="blob b3" aria-hidden="true"></div>
+  </div>
+
+  <div class="container">
+    <div class="nav">
+      <div class="brand"><div class="logo" aria-hidden="true"></div><span>TDS Data Analyst Agent</span></div>
+      <div class="row">
+        <span class="pill" id="netPill" title="Network status">🛰️ <span id="netText">Online</span></span>
+        <label class="theme-toggle" title="Toggle theme">
+          <input id="themeToggle" type="checkbox" />
+          <span>🌓 Theme</span>
+        </label>
+      </div>
+    </div>
+
+    <section class="card">
+      <div class="grid" role="group" aria-label="File inputs">
+        <div>
+          <label for="questions_file">Questions File (.txt) <span style="color:var(--warn)">*</span></label>
+          <div class="dropzone" id="qDrop" aria-label="Questions file dropzone" tabindex="0">
+            <input type="file" id="questions_file" accept=".txt" aria-required="true" />
+            <div class="hint">📁 Click or drop your <strong>.txt</strong> questions</div>
+            <div class="file-meta" id="qMeta" hidden></div>
+          </div>
+        </div>
+        <div>
+          <label for="data_file">Dataset (optional)</label>
+          <div class="dropzone" id="dDrop" aria-label="Dataset file dropzone" tabindex="0">
+            <input type="file" id="data_file" accept=".csv,.xlsx,.xls,.json,.parquet,.txt" />
+            <div class="hint">🗂️ Click or drop your dataset</div>
+            <div class="file-meta" id="dMeta" hidden></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="control-row" style="margin-top:12px">
+        <div class="actions">
+          <button class="btn primary" id="submitBtn">🚀 Analyze Data</button>
+          <button class="btn secondary" id="clearBtn" type="button">🧹 Clear</button>
+          <button class="btn ghost" id="expandAllBtn" type="button">➕ Expand all</button>
+          <button class="btn ghost" id="collapseAllBtn" type="button">➖ Collapse all</button>
+          <button class="btn ghost" id="downloadBtn" type="button">💾 Download JSON</button>
+        </div>
+      </div>
+
+      <div class="statusbar" aria-live="polite">
+        <div class="progress" aria-label="Upload progress" aria-valuemin="0" aria-valuemax="100" role="progressbar">
+          <span id="progressBar"></span>
+        </div>
+        <div class="row" style="display:flex; gap:8px; align-items:center;">
+          <span class="badge" id="apiBadge">API: /api</span>
+          <span class="badge" id="sizeBadge">Size: 0 KB</span>
+          <span class="badge" id="timeBadge">⏱️ Idle</span>
+        </div>
+      </div>
+
+      <div class="panels">
+        <div class="tabs" role="tablist">
+          <button class="tab active" data-tab="results" role="tab" aria-selected="true">📊 Results</button>
+          <button class="tab" data-tab="logs" role="tab" aria-selected="false">🧾 Logs</button>
+        </div>
+        <div class="panel active" id="panel-results" role="tabpanel">
+          <div class="searchbar">
+            <input id="searchInput" type="search" placeholder="Filter by question…" aria-label="Filter results" />
+          </div>
+          <div class="results" id="results"></div>
+        </div>
+        <div class="panel" id="panel-logs" role="tabpanel">
+          <pre class="code" id="logs" aria-live="polite">Ready.</pre>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Image Modal -->
+  <div class="modal" id="imgModal" aria-modal="true" role="dialog" aria-label="Image preview">
+    <button class="close" id="imgClose" aria-label="Close">×</button>
+    <img id="imgPreview" alt="Visualization preview" />
+  </div>
+
+  <div class="toasts" id="toasts" aria-live="polite" aria-atomic="true"></div>
+
+  <script>
+    // ================= Utilities =================
+    const $ = (sel, root=document) => root.querySelector(sel);
+    const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+    const fmtBytes = (n) => n < 1024 ? `${n} B` : n < 1048576 ? `${(n/1024).toFixed(1)} KB` : `${(n/1048576).toFixed(2)} MB`;
+    const debounce = (fn,ms=250)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); } };
+
+    function toast(msg, type='ok', ttl=4200) {
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.innerHTML = `<div>${msg}</div>`;
+      $('#toasts').appendChild(t);
+      setTimeout(()=>{ t.style.opacity = '0'; t.style.transform = 'translateY(6px)'; }, ttl-400);
+      setTimeout(()=> t.remove(), ttl);
+    }
+
+    function copy(text) {
+      navigator.clipboard.writeText(text).then(()=> toast('Copied to clipboard.')).catch(()=> toast('Copy failed', 'err'));
+    }
+
+    // ================= Theme =================
+    (function initTheme(){
+      const toggle = $('#themeToggle');
+      const key = 'tds-theme';
+      const saved = localStorage.getItem(key);
+      if (saved) document.documentElement.dataset.theme = saved;
+      toggle.checked = (document.documentElement.dataset.theme === 'light');
+      toggle.addEventListener('change', () => {
+        const mode = toggle.checked ? 'light' : 'dark';
+        document.documentElement.dataset.theme = mode; localStorage.setItem(key, mode);
+      });
+    })();
+
+    // ================= Network status =================
+    function updateNet(){ $('#netText').textContent = navigator.onLine ? 'Online' : 'Offline'; }
+    window.addEventListener('online', updateNet); window.addEventListener('offline', updateNet); updateNet();
+
+    // ================= Tabs =================
+    $$('.tab').forEach(tab => tab.addEventListener('click', () => {
+      $$('.tab').forEach(t => t.classList.toggle('active', t===tab));
+      $$('.panel').forEach(p => p.classList.toggle('active', p.id === `panel-${tab.dataset.tab}`));
+    }));
+
+    // ================= Dropzones =================
+    const qDrop = $('#qDrop'); const dDrop = $('#dDrop');
+    const qInput = $('#questions_file'); const dInput = $('#data_file');
+    const qMeta = $('#qMeta'); const dMeta = $('#dMeta');
+    function attachDZ(zone, input, meta, acceptExt) {
+      const showMeta = (file)=>{
+        meta.hidden = !file; if (!file) return;
+        meta.innerHTML = `<span class="file-chip">📄 ${file.name} · ${fmtBytes(file.size)} <button type="button" aria-label="Remove file">✖</button></span>`;
+        meta.querySelector('button').onclick = ()=>{ input.value=''; meta.hidden=true; updateSizeBadge(); };
+      };
+      const onChoose = (f)=>{
+        if (!f) { showMeta(null); return; }
+        const ok = acceptExt.some(ext => f.name.toLowerCase().endsWith(ext));
+        if (!ok) { toast(`Invalid file type. Allowed: ${acceptExt.join(', ')}`, 'err'); input.value=''; showMeta(null); return; }
+        showMeta(f); updateSizeBadge();
+      };
+      input.addEventListener('change', e => onChoose(e.target.files[0]));
+      const onDrag = (e,add)=>{ e.preventDefault(); zone.classList.toggle('drag', add); };
+      ;['dragenter','dragover'].forEach(ev => zone.addEventListener(ev, e=>onDrag(e,true)));
+      ;['dragleave','drop'].forEach(ev => zone.addEventListener(ev, e=>onDrag(e,false)));
+      zone.addEventListener('drop', e => { e.preventDefault(); const f=e.dataTransfer.files[0]; if(!f) return; input.files = e.dataTransfer.files; onChoose(f); });
+      // Keyboard support
+      zone.addEventListener('keydown', e => { if (e.key==='Enter' || e.key===' ') { e.preventDefault(); input.click(); } });
+    }
+    attachDZ(qDrop, qInput, qMeta, ['.txt']);
+    attachDZ(dDrop, dInput, dMeta, ['.csv','.xlsx','.xls','.json','.parquet','.txt']);
+
+    function updateSizeBadge(){
+      const total = (qInput.files[0]?.size || 0) + (dInput.files[0]?.size || 0);
+      $('#sizeBadge').textContent = `Size: ${fmtBytes(total)}`;
+    }
+
+    // ================= Modal =================
+    const modal = $('#imgModal'); const modalImg = $('#imgPreview'); const modalClose = $('#imgClose');
+    function openImg(src){ modalImg.src = src; modal.classList.add('open'); }
+    function closeImg(){ modal.classList.remove('open'); modalImg.src=''; }
+    modalClose.addEventListener('click', closeImg); modal.addEventListener('click', e => { if (e.target===modal) closeImg(); });
+    window.addEventListener('keydown', e => { if (e.key === 'Escape') closeImg(); });
+
+    // ================= Rendering helpers =================
+    function normalizeImageData(answer) {
+      let s = null;
+      if (typeof answer === 'string') { s = answer.trim(); }
+      else if (answer && typeof answer === 'object') {
+        s = answer.image || answer.base64 || answer.plot || answer.data || null;
+        if (typeof s === 'string') s = s.trim();
+      }
+      if (!s) return null;
+      s = s.replace(/^data:aimage\//i, 'data:image/');
+      if (/^data:image\//i.test(s)) return s;
+      const base64Like = /^[A-Za-z0-9+/=\r\n]+$/.test(s) && s.length > 200 && !/\s{2,}/.test(s);
+      if (base64Like) return 'data:image/png;base64,' + s;
+      return null;
+    }
+
+    function renderAnswerInto(answer, container) {
+      const maybeImg = normalizeImageData(answer);
+      if (maybeImg) {
+        const img = new Image();
+        img.src = maybeImg; img.alt = 'Generated visualization';
+        img.addEventListener('click', () => openImg(maybeImg));
+        container.appendChild(img); return;
+      }
+      const text = (answer && typeof answer === 'object') ? JSON.stringify(answer, null, 2) : String(answer ?? '');
+      if (text.includes('\n') || text.length > 120) {
+        const pre = document.createElement('pre'); pre.className = 'code'; pre.textContent = text; container.appendChild(pre);
+      } else { container.textContent = text; }
+    }
+
+    // ================= Results UI =================
+    function makeResultItem(question, answer) {
+      const wrap = document.createElement('div'); wrap.className = 'result';
+      const title = document.createElement('div'); title.className = 'title';
+      const h4 = document.createElement('h4'); h4.textContent = question;
+      const row = document.createElement('div'); row.className = 'row';
+      const btnCopy = document.createElement('button'); btnCopy.className='btn ghost'; btnCopy.textContent='📋 Copy';
+      const btnOpen = document.createElement('button'); btnOpen.className='btn ghost'; btnOpen.textContent='🔍 Expand';
+      row.append(btnCopy, btnOpen); title.append(h4, row); wrap.append(title);
+      const content = document.createElement('div'); content.className = 'content';
+      renderAnswerInto(answer, content); wrap.append(content);
+      // interactions
+      const getRaw = () => (typeof answer === 'string' ? answer : JSON.stringify(answer, null, 2));
+      btnCopy.addEventListener('click', () => copy(getRaw()));
+      const toggle = () => { wrap.classList.toggle('open'); btnOpen.textContent = wrap.classList.contains('open') ? '🔒 Collapse' : '🔍 Expand'; }
+      btnOpen.addEventListener('click', toggle); title.addEventListener('click', (e)=>{ if(e.target===h4) toggle(); });
+      return wrap;
+    }
+
+    function filterResults(query) {
+      const q = query.trim().toLowerCase();
+      $$('#results .result').forEach(node => {
+        const title = node.querySelector('h4').textContent.toLowerCase();
+        node.style.display = title.includes(q) ? '' : 'none';
+      });
+    }
+    $('#searchInput').addEventListener('input', debounce(e=> filterResults(e.target.value), 120));
+
+    // ================= Submission =================
+    const submitBtn = $('#submitBtn');
+    const clearBtn = $('#clearBtn');
+    const expandAllBtn = $('#expandAllBtn');
+    const collapseAllBtn = $('#collapseAllBtn');
+    const downloadBtn = $('#downloadBtn');
+    const resultsEl = $('#results');
+    const logsEl = $('#logs');
+    const timeBadge = $('#timeBadge');
+    const progressBar = $('#progressBar');
+
+    let lastJSON = null; // for download
+
+    function setBusy(b) { submitBtn.disabled = b; clearBtn.disabled = b; progressBar.style.width = b ? '8%' : '0%'; timeBadge.textContent = b ? '⏳ Working…' : '⏱️ Idle'; }
+
+    function appendLog(line) { logsEl.textContent += (logsEl.textContent.endsWith('\n') ? '' : '\n') + line; logsEl.scrollTop = logsEl.scrollHeight; }
+
+    function validate() {
+      if (!qInput.files[0]) { toast('Please upload your questions .txt file.', 'err'); qDrop.focus(); return false; }
+      const qf = qInput.files[0]; if (!qf.name.toLowerCase().endsWith('.txt')) { toast('Questions file must be .txt', 'err'); return false; }
+      const maxMB = 80; const total = (qInput.files[0]?.size||0) + (dInput.files[0]?.size||0);
+      if (total > maxMB * 1048576) { toast(`Total upload too large (> ${maxMB}MB).`, 'err'); return false; }
+      return true;
+    }
+
+    // XHR to track upload progress
+    function postFormWithProgress(url, formData, { onProgress, signal }) {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', url, true);
+        xhr.responseType = 'json';
+        signal?.addEventListener('abort', () => { xhr.abort(); reject(new DOMException('Aborted', 'AbortError')); });
+        xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress?.(e.loaded / e.total); };
+        xhr.onerror = () => reject(new Error('Network error'));
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) resolve(xhr.response);
+          else reject(new Error((xhr.response && (xhr.response.detail || xhr.response.error)) || `HTTP ${xhr.status}`));
+        };
+        xhr.send(formData);
+      });
+    }
+
+    async function submit() {
+      if (!validate()) return;
+      setBusy(true); resultsEl.innerHTML=''; lastJSON = null; appendLog('--- New request ---');
+      const formData = new FormData();
+      formData.append('questions_file', qInput.files[0]);
+      if (dInput.files[0]) formData.append('data_file', dInput.files[0]);
+
+      const start = performance.now();
+      const controller = new AbortController();
+      submitBtn.dataset.abort = '1';
+      submitBtn.textContent = '⏳ Cancel';
+      submitBtn.onclick = () => { controller.abort(); toast('Request cancelled', 'err'); };
+
+      try {
+        const data = await postFormWithProgress('/api', formData, {
+          signal: controller.signal,
+          onProgress: (p) => { progressBar.style.width = Math.max(8, Math.floor(p*100)) + '%'; },
+        });
+        lastJSON = data;
+        renderResults(data);
+        const dur = ((performance.now() - start) / 1000).toFixed(1);
+        timeBadge.textContent = `✅ Done in ${dur}s`;
+        toast('Analysis complete.');
+        appendLog('Success.');
+      } catch (err) {
+        const msg = err?.message || 'Unknown error';
+        resultsEl.innerHTML = '';
+        const errBox = makeResultItem('❌ Error', msg);
+        errBox.style.borderLeftColor = 'var(--err)';
+        resultsEl.appendChild(errBox);
+        timeBadge.textContent = '❌ Failed';
+        toast(msg, 'err');
+        appendLog('Error: ' + msg);
+      } finally {
+        setBusy(false);
+        submitBtn.textContent = '🚀 Analyze Data';
+        submitBtn.onclick = submit;
+      }
+    }
+
+    function renderResults(data) {
+      resultsEl.innerHTML = '';
+      if (!data || typeof data !== 'object') {
+        resultsEl.appendChild(makeResultItem('Response', String(data)));
+        return;
+      }
+      Object.entries(data).forEach(([question, answer]) => {
+        resultsEl.appendChild(makeResultItem(question, answer));
+      });
+    }
+
+    expandAllBtn.addEventListener('click', () => $$('#results .result').forEach(r=> r.classList.add('open')));
+    collapseAllBtn.addEventListener('click', () => $$('#results .result').forEach(r=> r.classList.remove('open')));
+
+    downloadBtn.addEventListener('click', () => {
+      if (!lastJSON) return toast('Nothing to download yet', 'err');
+      const blob = new Blob([JSON.stringify(lastJSON, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'analysis-results.json'; a.click(); setTimeout(()=> URL.revokeObjectURL(url), 1000);
+    });
+
+    clearBtn.addEventListener('click', () => {
+      qInput.value=''; dInput.value=''; qMeta.hidden=true; dMeta.hidden=true; updateSizeBadge(); resultsEl.innerHTML=''; lastJSON=null; $('#searchInput').value=''; filterResults('');
+      toast('Cleared.');
+    });
+
+    submitBtn.addEventListener('click', (e) => { e.preventDefault(); submit(); });
+
+    window.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') submit();
+    });
+
+    // ================= Offline (optional): inline service worker =================
+    if ('serviceWorker' in navigator) {
+      const swSrc = `self.addEventListener('install',e=>{self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(clients.claim())});const C='tds-ui-cache-v1';self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET')return; if(u.origin!==location.origin)return; e.respondWith((async()=>{const c=await caches.open(C);const m=await c.match(e.request); if(m)return m; const r=await fetch(e.request); c.put(e.request, r.clone()); return r;})());});`;
+      const blob = new Blob([swSrc], { type: 'text/javascript' });
+      const url = URL.createObjectURL(blob);
+      navigator.serviceWorker.register(url).catch(()=>{});
+    }
+  </script>
+</body>
+</html>
